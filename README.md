@@ -56,9 +56,16 @@ Pins 4 and 5 are the interesting pair. `redraw()` re-runs the snapshot into the 
 buffer and does not help. A one-point size change forces a new buffer and does. That is
 what identifies the bitmap, rather than layout or the change tracker, as the stale thing.
 
-Measured in the app this was extracted from: the clipped pin renders 95px of ink against
-133px for an identical pin built fresh, at equal width. Only the vertical is wrong, and
-the shortfall matches the wrapper's 15dp top margin.
+Measured in this repro, Pixel 6a emulator, ink height in screen pixels:
+
+| pin | 1 no key | 2 keyed | 3 from mount | 4 redraw() | 5 nudge |
+|---|---|---|---|---|---|
+| width | 112 | 113 | 113 | 113 | 112 |
+| height | **94** | 131 | 131 | **94** | 131 |
+
+Identical width in all five, so only the vertical is wrong. The 37px shortfall is about
+14dp at this density, which is the wrapper's 15dp top margin. The same numbers appear in
+the production app this was extracted from, 95 against 133.
 
 ## Why the structure matters
 

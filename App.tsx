@@ -20,15 +20,15 @@ import Pin from './src/Pin';
 const BASE = {latitude: 48.2, longitude: 11.0};
 const at = (i: number) => ({
   latitude: BASE.latitude,
-  longitude: BASE.longitude + i * 0.62,
+  longitude: BASE.longitude + i * 1.15,
 });
 
 const CASES = [
-  'swap, no key -> BROKEN',
-  'swap, marker keyed -> ok',
-  'vector from mount -> ok',
-  'swap + redraw() -> BROKEN',
-  'swap + 1dp wrapper nudge -> ok',
+  '1  swap, no key            -> CROPPED',
+  '2  swap, marker keyed      -> ok',
+  '3  vector from mount       -> ok',
+  '4  swap + redraw()         -> CROPPED',
+  '5  swap + 1dp wrapper nudge-> ok',
 ];
 
 export default function App() {
@@ -66,7 +66,7 @@ export default function App() {
       <MapView
         style={StyleSheet.absoluteFill}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={{...BASE, latitudeDelta: 5, longitudeDelta: 7}}
+        initialRegion={{...BASE, latitudeDelta: 6, longitudeDelta: 8}}
         scrollEnabled={false}
         zoomEnabled={false}
         rotateEnabled={false}
