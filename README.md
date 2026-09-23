@@ -77,13 +77,16 @@ the pin for a badge.
 
 ## Run it
 
-A Google Maps API key is **required**. Without one the app does not degrade, it crashes:
+**A valid Google Maps API key is required.** This is not optional and the app does not
+degrade without one:
 
-```
-java.lang.IllegalStateException: API key not found.
-```
+| key | result |
+|---|---|
+| none | build fails with instructions (the Maps SDK would otherwise crash the process on launch) |
+| present but invalid | app runs, map reports `Authorization failure`, **no markers are drawn** |
+| valid | the repro works |
 
-Put the key somewhere outside the repo. Either in your user-global Gradle properties:
+Put the key outside the repo, either in your user-global Gradle properties:
 
 ```
 # ~/.gradle/gradle.properties
@@ -97,8 +100,8 @@ npm install
 npx react-native run-android -- --extra-params "-PMAPS_API_KEY=AIza..."
 ```
 
-The build reads it through `project.findProperty('MAPS_API_KEY')` and injects it as a
-manifest placeholder, so no key is ever committed.
+The build reads it via `project.findProperty('MAPS_API_KEY')` and injects it as a manifest
+placeholder in `<application>`, so no key is committed.
 
 ## What a fix would look like
 

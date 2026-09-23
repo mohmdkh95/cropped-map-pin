@@ -72,6 +72,25 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+
+// Google Maps on Android has no keyless mode: without a key the SDK throws
+// IllegalStateException on the map thread and the process dies. Fail here instead.
+def mapsApiKey() {
+    def key = project.findProperty('MAPS_API_KEY')
+    if (key == null || key.toString().trim().isEmpty()) {
+        throw new GradleException(
+            "\n\n  MAPS_API_KEY is not set.\n" +
+            "  This repro needs a VALID Google Maps key.\n" +
+            "  Without any key the app crashes on launch; with an invalid one the map\n" +
+            "  fails authorization and no markers are drawn at all.\n\n" +
+            "  Add it outside the repo:\n" +
+            "      echo 'MAPS_API_KEY=AIza...' >> ~/.gradle/gradle.properties\n\n" +
+            "  or pass it per build:\n" +
+            "      ./gradlew :app:assembleDebug -PMAPS_API_KEY=AIza...\n")
+    }
+    return key.toString().trim()
+}
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -84,7 +103,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
-        manifestPlaceholders = [MAPS_API_KEY: (project.findProperty('MAPS_API_KEY') ?: '')]
+        manifestPlaceholders = [MAPS_API_KEY: mapsApiKey()]
     }
     signingConfigs {
         debug {
