@@ -1,7 +1,8 @@
 # react-native-maps — a marker reuses its bitmap, so swapped artwork is clipped
 
-Minimal reproduction. Android. The map is deliberately static: fixed region, gestures
-disabled, so nothing here depends on panning or timing.
+Minimal reproduction. Android. The map opens on a fixed region, and pan and zoom are
+enabled (plus the built-in zoom buttons) so you can get close to the clipped pins. The
+defect is driven by a timer, not by gestures, so zooming changes nothing about it.
 
 | | |
 |---|---|

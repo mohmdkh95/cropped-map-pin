@@ -5,9 +5,9 @@
  * a marker's artwork for something the same size therefore draws the new artwork
  * into a stale buffer, and it comes out clipped.
  *
- * The map here is static on purpose: fixed region, no gestures. Every pin below
- * is the same 50x54 teardrop, so any difference between them is the marker
- * layer, not the artwork.
+ * The map starts on a fixed region but pan and zoom are enabled, so the clipped
+ * pins can be inspected close up. Every pin is the same 50x54 teardrop, so any
+ * difference between them is the marker layer, not the artwork.
  *
  * At t=3s, and every 6s after, the artwork flips between raster and vector.
  * Watch the row: some pins keep their tail, some lose it.
@@ -67,8 +67,9 @@ export default function App() {
         style={StyleSheet.absoluteFill}
         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={{...BASE, latitudeDelta: 6, longitudeDelta: 8}}
-        scrollEnabled={false}
-        zoomEnabled={false}
+        scrollEnabled
+        zoomEnabled
+        zoomControlEnabled
         rotateEnabled={false}
         pitchEnabled={false}
         toolbarEnabled={false}>
