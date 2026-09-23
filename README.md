@@ -1,8 +1,18 @@
 # react-native-maps — a marker reuses its bitmap, so swapped artwork is clipped
 
-Minimal reproduction. Android. The map opens on a fixed region, and pan and zoom are
-enabled (plus the built-in zoom buttons) so you can get close to the clipped pins. The
-defect is driven by a timer, not by gestures, so zooming changes nothing about it.
+Minimal reproduction. Android. The map opens on a fixed region with pan and zoom enabled.
+
+**There are two ways to swap the artwork, and only one of them reproduces the defect.**
+
+| driver | what it does | result |
+|---|---|---|
+| zoom | vector when zoomed out, raster when zoomed in, mirroring the app this came from | **does not reproduce** |
+| button | flips the artwork with the map untouched | **reproduces every time** |
+
+That difference is itself part of the report. A camera change refreshes the markers, which
+discards the stale bitmap as a side effect, so the bug hides whenever the swap rides along
+with a zoom. It needs the artwork to change while the map is still. In the original app the
+same thing showed up as the defect sparing any car that had just been re-clustered.
 
 | | |
 |---|---|
