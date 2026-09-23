@@ -5,10 +5,6 @@ without their tail.
 
 ![five pins on a live map, two clipped](docs/pins-live.jpg)
 
-The two that broke are the ones whose artwork was replaced while the marker stayed alive.
-Pin 4 shows that `redraw()` does not help; pin 5 shows that changing the marker's size by a
-single point does.
-
 | | |
 |---|---|
 | react-native | 0.81.4 |
@@ -16,7 +12,48 @@ single point does.
 | react-native-svg | 15.14.0 |
 | reproduced on | Pixel 6a emulator, API 36, density 2.625 |
 
-## The defect
+## What you are looking at
+
+**Why a marker can go wrong at all.** On Android, Google Maps will not host live views inside
+a marker. So react-native-maps takes a photograph of whatever you put in the marker and hands
+that picture to the map. Everything you see in a custom marker is a bitmap, not the views you
+wrote.
+
+**The defect.** The library keeps that bitmap and reuses it. It throws it away and allocates a
+new one only when the marker's **size** changes. Nothing else triggers it, not a content
+change, not a redraw request.
+
+So if you replace a marker's artwork with different artwork of the same size, the library is
+never told anything happened. It paints the new artwork into the buffer it already had, and
+what comes out is short.
+
+**Why these two pins and not the others.** All five swap a grey image for an orange vector at
+the same moment. What differs is what happens to the marker around them.
+
+| pin | what happens to the marker | outcome |
+|---|---|---|
+| 1 | nothing, it survives the swap | buffer reused, **clipped** |
+| 2 | React rebuilds it, because it is keyed on the artwork | new marker, new buffer |
+| 3 | never swaps at all | nothing to go stale |
+| 4 | survives, and `redraw()` is called | redraw uses the same buffer, **still clipped** |
+| 5 | survives, but the wrapper grows by one point | size changed, so new buffer |
+
+Pins 4 and 5 are the pair that makes this a report rather than a guess. Asking the marker to
+redraw itself changes nothing. Nudging its size by a single point fixes it. The only
+difference between those two actions is whether a fresh bitmap gets allocated, which is what
+pins the blame on the buffer rather than on layout or on the change tracker.
+
+**What makes it reachable in ordinary code.** The library watches only the marker's first
+child for size changes. The pin here is a grandchild, sitting inside a wrapper that reserves
+space above it for a badge. Wrappers like that are completely normal. Take the wrapper away
+and the bug vanishes, because the pin becomes the first child and gets watched.
+
+**One distinction about what you run.** The static screen is a reconstruction: it clips those
+two pins deliberately, to the geometry measured on a real device. The live screen is the
+actual reproduction. The defect only exists inside a real marker, so a screen without a map
+can show you the result but cannot produce it.
+
+## Where it happens in the library
 
 A marker cannot host live views on Android, so the library photographs its children into a
 bitmap. It keeps that bitmap and reuses it, discarding it only when the marker's **size**
@@ -82,22 +119,10 @@ the map fails authorization and draws nothing at all, markers included.
 
 ![the live map screen](docs/live-map.jpg)
 
-## What the five pins do
-
-| pin | what it does | result |
-|---|---|---|
-| 1 | artwork swapped in place | **clipped, loses its tail** |
-| 2 | marker keyed on the artwork, so React rebuilds it | correct |
-| 3 | vector from mount, never swaps | correct |
-| 4 | swapped, then `marker.redraw()` | **still clipped** |
-| 5 | swapped, then the wrapper grows by 1dp | correct |
+## The measurements
 
 A sixth copy renders outside the map and stays correct throughout, which shows the artwork
 itself is fine.
-
-Pins 4 and 5 are the pair that matters. `redraw()` re-runs the snapshot into the buffer the
-marker already has and does not help. A one-point size change forces a new buffer and does.
-That identifies the bitmap, rather than the layout or the change tracker, as the stale thing.
 
 Measured ink height in screen pixels:
 
