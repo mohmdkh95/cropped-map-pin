@@ -1,18 +1,30 @@
 # react-native-maps — a marker reuses its bitmap, so swapped artwork is clipped
 
-Minimal reproduction. Android. The map opens on a fixed region with pan and zoom enabled.
+Android. Two screens:
 
-**There are two ways to swap the artwork, and only one of them reproduces the defect.**
+| file | map | needs a key | shows |
+|---|---|---|---|
+| `src/StaticDemo.tsx` | a static image | **no** | the recorded result, five pins, two clipped |
+| `src/LiveMapRepro.tsx` | real Google map | yes | the defect happening live |
+
+`App.tsx` renders the static screen by default, so `npx react-native run-android` works
+with nothing configured. Swap the import in `App.tsx` for the live one when you have a key.
+
+The static screen is a **reconstruction**: it clips the two broken pins to the geometry
+measured on device, dropping the bottom 15dp. It cannot reproduce the defect, because the
+defect lives in the marker's bitmap handling and only exists inside a real `<Marker>`.
+
+In the live screen there are two ways to swap the artwork, and only one reproduces it.
 
 | driver | what it does | result |
 |---|---|---|
 | zoom | vector when zoomed out, raster when zoomed in, mirroring the app this came from | **does not reproduce** |
 | button | flips the artwork with the map untouched | **reproduces every time** |
 
-That difference is itself part of the report. A camera change refreshes the markers, which
-discards the stale bitmap as a side effect, so the bug hides whenever the swap rides along
-with a zoom. It needs the artwork to change while the map is still. In the original app the
-same thing showed up as the defect sparing any car that had just been re-clustered.
+A camera change refreshes the markers, which discards the stale bitmap as a side effect, so
+the bug hides whenever the swap rides along with a zoom. It needs the artwork to change while
+the map is still. In the original app the same thing showed up as the defect sparing any car
+that had just been re-clustered.
 
 | | |
 |---|---|
