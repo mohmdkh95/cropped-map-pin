@@ -1,30 +1,13 @@
 # react-native-maps — a marker reuses its bitmap, so swapped artwork is clipped
 
-Android. Two screens:
+Android. All five markers below were handed the **same** 50x54 teardrop. Two came back
+without their tail.
 
-| file | map | needs a key | shows |
-|---|---|---|---|
-| `src/StaticDemo.tsx` | a static image | **no** | the recorded result, five pins, two clipped |
-| `src/LiveMapRepro.tsx` | real Google map | yes | the defect happening live |
+![five pins on a live map, two clipped](docs/pins-live.jpg)
 
-`App.tsx` renders the static screen by default, so `npx react-native run-android` works
-with nothing configured. Swap the import in `App.tsx` for the live one when you have a key.
-
-The static screen is a **reconstruction**: it clips the two broken pins to the geometry
-measured on device, dropping the bottom 15dp. It cannot reproduce the defect, because the
-defect lives in the marker's bitmap handling and only exists inside a real `<Marker>`.
-
-In the live screen there are two ways to swap the artwork, and only one reproduces it.
-
-| driver | what it does | result |
-|---|---|---|
-| zoom | vector when zoomed out, raster when zoomed in, mirroring the app this came from | **does not reproduce** |
-| button | flips the artwork with the map untouched | **reproduces every time** |
-
-A camera change refreshes the markers, which discards the stale bitmap as a side effect, so
-the bug hides whenever the swap rides along with a zoom. It needs the artwork to change while
-the map is still. In the original app the same thing showed up as the defect sparing any car
-that had just been re-clustered.
+The two that broke are the ones whose artwork was replaced while the marker stayed alive.
+Pin 4 shows that `redraw()` does not help; pin 5 shows that changing the marker's size by a
+single point does.
 
 | | |
 |---|---|
@@ -35,9 +18,9 @@ that had just been re-clustered.
 
 ## The defect
 
-A marker cannot host live views on Android, so the library photographs its children into
-a bitmap. It keeps that bitmap and reuses it, discarding it only when the marker's
-**size** changes:
+A marker cannot host live views on Android, so the library photographs its children into a
+bitmap. It keeps that bitmap and reuses it, discarding it only when the marker's **size**
+changes:
 
 ```java
 // MapMarker.createDrawable()
@@ -56,15 +39,52 @@ this.draw(new Canvas(bitmap));
 `update(int width, int height)` — which runs from a layout listener that
 `MarkerManager.addView` attaches to **the child at index 0**.
 
-So if you replace a marker's artwork with something the same size, nothing re-measures,
-the bitmap is reused, and the new artwork is drawn short.
+So if you replace a marker's artwork with something the same size, nothing re-measures, the
+bitmap is reused, and the new artwork is drawn short.
 
-## What you should see
+## Two screens
 
-Five pins in a row. All five are the same 50x54 teardrop. Every 6 seconds the artwork
-flips between a raster PNG and an SVG.
+| file | map | needs a key | shows |
+|---|---|---|---|
+| `src/StaticDemo.tsx` | a static image | **no** | the recorded result |
+| `src/LiveMapRepro.tsx` | real Google map | yes | the defect happening live |
 
-| pin | what it does | expected |
+`App.tsx` renders the static screen, so the project runs from a clean clone with nothing
+configured. Swap its single import for the live one when you have a key.
+
+![the static screen, no API key needed](docs/static-screen.png)
+
+The static screen is a **reconstruction**. It clips the two broken pins to the geometry
+measured on device, dropping the bottom 15dp. It cannot reproduce the defect, because the
+defect lives in the marker's bitmap handling and only exists inside a real `<Marker>`.
+
+![close-up of the static screen pins](docs/pins-static.png)
+
+## Run it
+
+```bash
+npm install
+npx react-native run-android
+```
+
+That gives you the static screen. For the live one, supply a Google Maps key and change the
+import in `App.tsx`:
+
+```
+# ~/.gradle/gradle.properties
+MAPS_API_KEY=AIza...
+```
+
+The build reads it via `project.findProperty('MAPS_API_KEY')` and injects it as a manifest
+placeholder inside `<application>`, so no key is committed. Without a valid key the Maps SDK
+throws `IllegalStateException: API key not found` and the process dies; with an invalid one
+the map fails authorization and draws nothing at all, markers included.
+
+![the live map screen](docs/live-map.jpg)
+
+## What the five pins do
+
+| pin | what it does | result |
 |---|---|---|
 | 1 | artwork swapped in place | **clipped, loses its tail** |
 | 2 | marker keyed on the artwork, so React rebuilds it | correct |
@@ -72,23 +92,37 @@ flips between a raster PNG and an SVG.
 | 4 | swapped, then `marker.redraw()` | **still clipped** |
 | 5 | swapped, then the wrapper grows by 1dp | correct |
 
-A sixth copy renders outside the map and stays correct throughout, which shows the
-artwork itself is fine.
+A sixth copy renders outside the map and stays correct throughout, which shows the artwork
+itself is fine.
 
-Pins 4 and 5 are the interesting pair. `redraw()` re-runs the snapshot into the same
-buffer and does not help. A one-point size change forces a new buffer and does. That is
-what identifies the bitmap, rather than layout or the change tracker, as the stale thing.
+Pins 4 and 5 are the pair that matters. `redraw()` re-runs the snapshot into the buffer the
+marker already has and does not help. A one-point size change forces a new buffer and does.
+That identifies the bitmap, rather than the layout or the change tracker, as the stale thing.
 
-Measured in this repro, Pixel 6a emulator, ink height in screen pixels:
+Measured ink height in screen pixels:
 
-| pin | 1 no key | 2 keyed | 3 from mount | 4 redraw() | 5 nudge |
+| pin | 1 | 2 | 3 | 4 | 5 |
 |---|---|---|---|---|---|
 | width | 112 | 113 | 113 | 113 | 112 |
 | height | **94** | 131 | 131 | **94** | 131 |
 
-Identical width in all five, so only the vertical is wrong. The 37px shortfall is about
-14dp at this density, which is the wrapper's 15dp top margin. The same numbers appear in
-the production app this was extracted from, 95 against 133.
+Identical width in all five, so only the vertical is wrong. The 37px shortfall is about 14dp
+at this density, which is the wrapper's 15dp top margin. The same numbers appear in the
+production app this was extracted from, 95 against 133.
+
+## Zoom hides it
+
+In the live screen there are two ways to swap the artwork, and only one reproduces the defect.
+
+| driver | what it does | result |
+|---|---|---|
+| zoom | vector when zoomed out, raster when zoomed in, mirroring the app this came from | **does not reproduce** |
+| button | flips the artwork with the map untouched | **reproduces every time** |
+
+A camera change refreshes the markers, which discards the stale bitmap as a side effect, so
+the bug hides whenever the swap rides along with a zoom. It needs the artwork to change while
+the map is still. Measured over three zoom cycles, every pin stayed at 131px. In the original
+app the same thing showed up as the defect sparing any car that had just been re-clustered.
 
 ## Why the structure matters
 
@@ -100,38 +134,10 @@ wrapper View          <- the marker's child at index 0; its size never changes
   overlay (in flow)
 ```
 
-Put the pin directly under the `<Marker>` with no wrapper and the bug disappears: the pin
-is then index 0 itself, gets a layout listener, and the bitmap is discarded. The wrapper
-is what hides the change, and wrappers are ordinary — ours exists to reserve space above
-the pin for a badge.
-
-## Run it
-
-**A valid Google Maps API key is required.** This is not optional and the app does not
-degrade without one:
-
-| key | result |
-|---|---|
-| none | build fails with instructions (the Maps SDK would otherwise crash the process on launch) |
-| present but invalid | app runs, map reports `Authorization failure`, **no markers are drawn** |
-| valid | the repro works |
-
-Put the key outside the repo, either in your user-global Gradle properties:
-
-```
-# ~/.gradle/gradle.properties
-MAPS_API_KEY=AIza...
-```
-
-or pass it per build:
-
-```bash
-npm install
-npx react-native run-android -- --extra-params "-PMAPS_API_KEY=AIza..."
-```
-
-The build reads it via `project.findProperty('MAPS_API_KEY')` and injects it as a manifest
-placeholder in `<application>`, so no key is committed.
+Put the pin directly under the `<Marker>` with no wrapper and the bug disappears: the pin is
+then index 0 itself, gets a layout listener, and the bitmap is discarded. The wrapper is what
+hides the change, and wrappers are ordinary — ours exists to reserve space above the pin for
+a badge.
 
 ## What a fix would look like
 
