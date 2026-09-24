@@ -83,11 +83,11 @@ bitmap is reused, and the new artwork is drawn short.
 
 | file | map | shows |
 |---|---|---|
-| `src/LiveMapRepro.tsx` | real Google map | the defect happening live, **the default** |
-| `src/StaticDemo.tsx` | a static image | the recorded result, no map, no key |
+| `src/StaticDemo.tsx` | a static image | the recorded result, no key needed, **the default** |
+| `src/LiveMapRepro.tsx` | real Google map | the defect happening live, needs a key |
 
-`App.tsx` renders the live one. Swap its single import for `StaticDemo` if you want the
-map-free screen.
+`App.tsx` renders the static one, so the project runs from a clean clone with nothing
+configured. Swap its single import for `LiveMapRepro` when you have a key.
 
 The static screen is a **reconstruction**. It clips the two broken pins to the geometry
 measured on device, dropping the bottom 15dp. It cannot reproduce the defect, because the
@@ -102,23 +102,27 @@ npm install
 npx react-native run-android
 ```
 
-A demo Google Maps key ships in `android/gradle.properties`, so there is nothing to
-configure. The build reads it via `project.findProperty('MAPS_API_KEY')` and injects it as a
-manifest placeholder inside `<application>`.
+That is the whole setup for the static screen.
 
-**The key must be authorised for this app, or the map draws nothing.** Google restricts
-Android keys by signing certificate and package name. If the map comes up blank and logcat
-shows `Authorization failure`, add this pair to the key in Cloud Console, and make sure
-"Maps SDK for Android" is enabled on its project:
+For the live one, supply a key:
 
-| | |
-|---|---|
-| package | `com.markerbitmaprepro` |
-| debug SHA-1 | `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25` |
+```
+# ~/.gradle/gradle.properties
+MAPS_API_KEY=AIza...
+```
 
-That SHA-1 is the standard Android debug keystore shipped in `android/app/debug.keystore`,
-so it is the same for anyone who clones this. To use your own key instead, replace
-`MAPS_API_KEY` in `android/gradle.properties`.
+**The key's project must have "Maps SDK for Android" enabled, and the key must be allowed to
+call it.** A Maps Platform key provisioned for the web products will not do: Maps JavaScript
+API is a different product and does not cover native Android. Check both in Cloud Console:
+
+1. **APIs & Services → Library**, search *Maps SDK for Android*, Enable it on the project.
+2. On the key, under **API restrictions**, tick *Maps SDK for Android*, or choose *Don't
+   restrict key*.
+
+Application restrictions are a separate setting and are usually not the problem. If the key
+does restrict by Android app, add package `com.markerbitmaprepro` with the debug SHA-1
+`5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25`, which is the standard debug
+certificate in `android/app/debug.keystore`.
 
 Without any key the SDK throws `IllegalStateException: API key not found` and the process
 dies. With a key it does not accept, the map fails authorization and draws nothing at all,

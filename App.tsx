@@ -1,16 +1,15 @@
 /**
- * Default entry: the LIVE reproduction against a real map.
+ * Default entry: the static, key-free screen.
  *
- * A demo Google Maps key ships in android/gradle.properties, so this runs from
- * a clean clone with no setup.
+ * To run the LIVE reproduction against a real map you need a Google Maps key
+ * whose project has "Maps SDK for Android" enabled (see README), then swap the
+ * import below for:
  *
- * For the static, map-free screen instead, swap the import below for:
- *
- *   import StaticDemo from './src/StaticDemo';
+ *   import LiveMapRepro from './src/LiveMapRepro';
  */
 import React from 'react';
-import LiveMapRepro from './src/LiveMapRepro';
+import StaticDemo from './src/StaticDemo';
 
 export default function App() {
-  return <LiveMapRepro />;
+  return <StaticDemo />;
 }
