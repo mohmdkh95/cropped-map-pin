@@ -10,7 +10,7 @@
  *
  * Run src/LiveMapRepro.tsx instead when you have a key.
  */
-//
+
 import React from 'react';
 import {Image, ScrollView, StyleSheet, Text, View} from 'react-native';
 import Pin, {PIN_H, PIN_W, TOP_MARGIN} from './Pin';
