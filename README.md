@@ -130,6 +130,58 @@ markers included.
 
 ![the live map screen](docs/live-map.jpg)
 
+## Steps to reproduce
+
+1. `npm install`
+2. Put a Maps key with **Maps SDK for Android** enabled in `~/.gradle/gradle.properties` as
+   `MAPS_API_KEY=...`
+3. In `App.tsx`, import `./src/LiveMapRepro` instead of `./src/StaticDemo`
+4. `npx react-native run-android`
+5. Wait for the five pins. They mount as the vector artwork and all five are correct.
+6. Tap **swap artwork without touching the map**, top right. Every pin switches to the raster
+   artwork, which is the same size. Pin 3 is hardcoded to the vector and does not switch.
+7. Tap it again. The vector artwork comes back, and **this is the tap that shows the defect.**
+
+**Expected:** all five pins render the full teardrop, ring and tail, every time.
+
+**Actual:** after step 7, pins 1 and 4 have lost their tail and part of the ring. Pins 2, 3
+and 5 are correct. Keep tapping and the same two break on every return to the vector.
+
+Do not use zoom to trigger the swap. A camera change refreshes the markers and hides the
+defect; see [Zoom hides it](#zoom-hides-it).
+
+### Smallest form
+
+Strip away the five variants and this is all it takes. One marker, one wrapper whose size
+never changes, and a child swapped underneath it:
+
+```tsx
+const [vector, setVector] = useState(false);
+
+<Marker coordinate={c} anchor={{x: 0.5, y: 1}}>
+  {/* 50x69 in both states, so the library is never told anything changed */}
+  <View style={{width: 50, height: 69}}>
+    {vector ? (
+      <Svg width={50} height={54} viewBox="0 0 150 151"
+           preserveAspectRatio="xMidYMid slice"
+           style={{position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+                   marginTop: 15}}>
+        {/* ring + tail */}
+      </Svg>
+    ) : (
+      <Image source={png}
+             style={{position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+                     width: 50, height: 54, marginTop: 15}} />
+    )}
+  </View>
+</Marker>
+```
+
+Call `setVector(true)` after the marker has mounted and the vector draws clipped. Two details
+matter: the wrapper's size is identical in both states, and the swapped child is a grandchild
+of the `<Marker>` rather than its first child.
+
+
 ## The measurements
 
 A sixth copy renders outside the map and stays correct throughout, which shows the artwork
