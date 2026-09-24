@@ -19,6 +19,9 @@
  *            camera change refreshes the markers, which clears the stale bitmap.
  *   BUTTON - flips the artwork with the map untouched. This is the reproduction.
  *
+ * The pins MOUNT as raster, like a blocked car in the real app, so the very
+ * first swap is raster -> vector, which is the direction that breaks.
+ *
  * The difference between the two is the point. The bug needs the artwork to
  * change while the map itself is still.
  */
@@ -33,8 +36,12 @@ const at = (i: number) => ({
   longitude: BASE.longitude + i * 1.15,
 });
 
-// Mirrors the production threshold: one artwork close in, another far out.
-const ZOOM_THRESHOLD = 2.0;
+// Mirrors the production app: zoomed IN shows the raster artwork, zoomed OUT
+// shows the vector. The threshold is relative to whatever region the map
+// actually settles on, because Google fits initialRegion to the viewport and
+// the resulting delta varies by device. Mounting below it makes the pins start
+// as raster, exactly as a blocked car does in the real app.
+const ZOOM_OUT_FACTOR = 1.5;
 
 const CASES = [
   '1  swap, no key            -> CROPPED',
@@ -45,7 +52,8 @@ const CASES = [
 ];
 
 export default function LiveMapRepro() {
-  const [delta, setDelta] = useState(6);
+  const [delta, setDelta] = useState<number | null>(null);
+  const settledRef = useRef<number | null>(null);
   const [nudge, setNudge] = useState(0);
   const redrawRef = useRef<React.ElementRef<typeof Marker> | null>(null);
 
@@ -53,7 +61,9 @@ export default function LiveMapRepro() {
   // marker's own size is identical either way, which is what hides the change.
   // null = follow the zoom threshold; true/false = pinned by the button
   const [pinned, setPinned] = useState<boolean | null>(null);
-  const byZoom = delta >= ZOOM_THRESHOLD;
+  const threshold =
+    settledRef.current === null ? Infinity : settledRef.current * ZOOM_OUT_FACTOR;
+  const byZoom = delta !== null && delta >= threshold;
   const vector = pinned ?? byZoom;
 
   // case d: ask the marker to re-snapshot once the swap has committed
@@ -84,7 +94,12 @@ export default function LiveMapRepro() {
         rotateEnabled={false}
         pitchEnabled={false}
         toolbarEnabled={false}
-        onRegionChangeComplete={r => setDelta(r.latitudeDelta)}>
+        onRegionChangeComplete={r => {
+          if (settledRef.current === null) {
+            settledRef.current = r.latitudeDelta;
+          }
+          setDelta(r.latitudeDelta);
+        }}>
         {/* a - the bug: same marker, artwork replaced underneath it */}
         <Marker coordinate={at(-2)} anchor={{x: 0.5, y: 1}}>
           <Pin vector={vector} />
@@ -127,9 +142,9 @@ export default function LiveMapRepro() {
 
       <View style={styles.legend} pointerEvents="none">
         <Text style={styles.small}>
-          {`zoom delta ${delta.toFixed(2)} ${
-            vector ? '>=' : '<'
-          } ${ZOOM_THRESHOLD} -> ${vector ? 'VECTOR' : 'raster'}`}
+          {`zoom delta ${delta === null ? '-' : delta.toFixed(1)} vs ${
+            threshold === Infinity ? '-' : threshold.toFixed(1)
+          } -> ${vector ? 'VECTOR' : 'raster'}`}
         </Text>
         <Text style={styles.small}>
           {pinned === null ? 'driver: zoom' : 'driver: button (map untouched)'}
