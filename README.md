@@ -81,15 +81,13 @@ bitmap is reused, and the new artwork is drawn short.
 
 ## Two screens
 
-| file | map | needs a key | shows |
-|---|---|---|---|
-| `src/StaticDemo.tsx` | a static image | **no** | the recorded result |
-| `src/LiveMapRepro.tsx` | real Google map | yes | the defect happening live |
+| file | map | shows |
+|---|---|---|
+| `src/LiveMapRepro.tsx` | real Google map | the defect happening live, **the default** |
+| `src/StaticDemo.tsx` | a static image | the recorded result, no map, no key |
 
-`App.tsx` renders the static screen, so the project runs from a clean clone with nothing
-configured. Swap its single import for the live one when you have a key.
-
-![the static screen, no API key needed](docs/static-screen.png)
+`App.tsx` renders the live one. Swap its single import for `StaticDemo` if you want the
+map-free screen.
 
 The static screen is a **reconstruction**. It clips the two broken pins to the geometry
 measured on device, dropping the bottom 15dp. It cannot reproduce the defect, because the
@@ -104,18 +102,27 @@ npm install
 npx react-native run-android
 ```
 
-That gives you the static screen. For the live one, supply a Google Maps key and change the
-import in `App.tsx`:
+A demo Google Maps key ships in `android/gradle.properties`, so there is nothing to
+configure. The build reads it via `project.findProperty('MAPS_API_KEY')` and injects it as a
+manifest placeholder inside `<application>`.
 
-```
-# ~/.gradle/gradle.properties
-MAPS_API_KEY=AIza...
-```
+**The key must be authorised for this app, or the map draws nothing.** Google restricts
+Android keys by signing certificate and package name. If the map comes up blank and logcat
+shows `Authorization failure`, add this pair to the key in Cloud Console, and make sure
+"Maps SDK for Android" is enabled on its project:
 
-The build reads it via `project.findProperty('MAPS_API_KEY')` and injects it as a manifest
-placeholder inside `<application>`, so no key is committed. Without a valid key the Maps SDK
-throws `IllegalStateException: API key not found` and the process dies; with an invalid one
-the map fails authorization and draws nothing at all, markers included.
+| | |
+|---|---|
+| package | `com.markerbitmaprepro` |
+| debug SHA-1 | `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25` |
+
+That SHA-1 is the standard Android debug keystore shipped in `android/app/debug.keystore`,
+so it is the same for anyone who clones this. To use your own key instead, replace
+`MAPS_API_KEY` in `android/gradle.properties`.
+
+Without any key the SDK throws `IllegalStateException: API key not found` and the process
+dies. With a key it does not accept, the map fails authorization and draws nothing at all,
+markers included.
 
 ![the live map screen](docs/live-map.jpg)
 
